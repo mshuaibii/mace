@@ -5,6 +5,7 @@
 ###########################################################################################
 
 import dataclasses
+import wandb
 import logging
 import time
 from contextlib import nullcontext
@@ -19,6 +20,7 @@ from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 from torch_ema import ExponentialMovingAverage
 from torchmetrics import Metric
+from tqdm import tqdm
 
 from mace.cli.visualise_train import TrainingPlotter
 
@@ -196,6 +198,7 @@ def train(
         )
     valid_loss = valid_loss_head  # consider only the last head for the checkpoint
 
+    steps = 0
     while epoch < max_num_epochs:
         # LR scheduler and SWA update
         if swa is None or epoch < swa.start:
@@ -229,10 +232,13 @@ def train(
             max_grad_norm=max_grad_norm,
             ema=ema,
             logger=logger,
+            log_wandb=log_wandb,
             device=device,
             distributed_model=distributed_model,
             rank=rank,
+            steps=steps,
         )
+        steps += len(train_loader)
         if distributed:
             torch.distributed.barrier()
 
@@ -267,13 +273,15 @@ def train(
                             valid_loader_name,
                         )
                         if log_wandb:
-                            wandb_log_dict[valid_loader_name] = {
-                                "epoch": epoch,
-                                "valid_loss": valid_loss_head,
-                                "valid_rmse_e_per_atom": eval_metrics[
+                            wandb_log_dict = {
+                                "val/epoch": epoch,
+                                "val/loss": valid_loss_head,
+                                "val/omol.val,omol_energy,mae": eval_metrics["mae_e"],
+                                "val/omol.val,forces,mae": eval_metrics["mae_f"],
+                                "val/rmse_e_per_atom": eval_metrics[
                                     "rmse_e_per_atom"
                                 ],
-                                "valid_rmse_f": eval_metrics["rmse_f"],
+                                "val/rmse_f": eval_metrics["rmse_f"],
                             }
                 if plotter and epoch % plotter.plot_frequency == 0:
                     try:
@@ -341,9 +349,11 @@ def train_one_epoch(
     max_grad_norm: Optional[float],
     ema: Optional[ExponentialMovingAverage],
     logger: MetricsLogger,
+    log_wandb: bool,
     device: torch.device,
     distributed_model: Optional[DistributedDataParallel] = None,
     rank: Optional[int] = 0,
+    steps: int = 0,
 ) -> None:
     model_to_train = model if distributed_model is None else distributed_model
     for batch in data_loader:
@@ -361,6 +371,16 @@ def train_one_epoch(
         opt_metrics["epoch"] = epoch
         if rank == 0:
             logger.log(opt_metrics)
+            logging.info(opt_metrics)
+            if log_wandb:
+                wandb.log(
+                    {
+                        "train/step": steps,
+                        "train/loss": opt_metrics["loss"]
+                    }
+                )
+            steps += 1
+
 
 
 def take_step(
@@ -414,7 +434,7 @@ def evaluate(
     metrics = MACELoss(loss_fn=loss_fn).to(device)
 
     start_time = time.time()
-    for batch in data_loader:
+    for batch in tqdm(data_loader, total=len(data_loader)):
         batch = batch.to(device)
         batch_dict = batch.to_dict()
         output = model(
