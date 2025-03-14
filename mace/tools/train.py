@@ -171,8 +171,6 @@ def train(
     patience_counter = 0
     swa_start = True
     keep_last = False
-    if log_wandb:
-        import wandb
 
     if max_grad_norm is not None:
         logging.info(f"Using gradient clipping with tolerance={max_grad_norm:.3f}")
@@ -280,7 +278,10 @@ def train(
                                 "val/omol.val,forces,mae": eval_metrics["mae_f"],
                                 "val/rmse_e_per_atom": eval_metrics["rmse_e_per_atom"],
                                 "val/rmse_f": eval_metrics["rmse_f"],
+                                "val/size": len(valid_loader),
                             }
+                            logging.info(wandb_log_dict)
+                            wandb.log(wandb_log_dict)
                 if plotter and epoch % plotter.plot_frequency == 0:
                     try:
                         plotter.plot(epoch, model_to_evaluate, rank)
@@ -289,8 +290,6 @@ def train(
                 valid_loss = (
                     valid_loss_head  # consider only the last head for the checkpoint
                 )
-            if log_wandb:
-                wandb.log(wandb_log_dict)
             if rank == 0:
                 if valid_loss >= lowest_loss:
                     patience_counter += 1
