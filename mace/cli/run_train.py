@@ -59,7 +59,7 @@ from mace.tools.scripts_utils import (
     remove_pt_head,
     setup_wandb,
 )
-from mace.tools.slurm_distributed import DistributedEnvironment
+from mace.tools.slurm_distributed import DistributedEnvironment, setup
 from mace.tools.tables_utils import create_error_table
 from mace.tools.utils import AtomicNumberTable
 
@@ -87,17 +87,22 @@ def run(args) -> None:
                 "Error: Intel extension for PyTorch not found, but XPU device was specified"
             ) from e
     if args.distributed:
-        try:
-            distr_env = DistributedEnvironment()
-        except Exception as e:  # pylint: disable=W0703
-            logging.error(f"Failed to initialize distributed environment: {e}")
-            return
-        world_size = distr_env.world_size
-        local_rank = distr_env.local_rank
-        rank = distr_env.rank
-        if rank == 0:
-            print(distr_env)
-        torch.distributed.init_process_group(backend="nccl")
+        config = setup()
+
+        world_size = config["world_size"]
+        rank = config["rank"]
+        local_rank = config["local_rank"]
+        # try:
+            # distr_env = DistributedEnvironment()
+        # except Exception as e:  # pylint: disable=W0703
+            # logging.error(f"Failed to initialize distributed environment: {e}")
+            # return
+        # world_size = distr_env.world_size
+        # local_rank = distr_env.local_rank
+        # rank = distr_env.rank
+        # if rank == 0:
+            # print(distr_env)
+        # torch.distributed.init_process_group(backend="nccl")
     else:
         rank = int(0)
 
@@ -110,6 +115,7 @@ def run(args) -> None:
 
     if args.distributed:
         torch.cuda.set_device(local_rank)
+        logging.info(config)
         logging.info(f"Process group initialized: {torch.distributed.is_initialized()}")
         logging.info(f"Processes: {world_size}")
 
@@ -727,7 +733,7 @@ def run(args) -> None:
         for group in optimizer.param_groups:
             group["lr"] = args.lr
 
-    if args.wandb:
+    if args.wandb and rank==0:
         setup_wandb(args)
     if args.distributed:
         distributed_model = DDP(model, device_ids=[local_rank])

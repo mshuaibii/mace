@@ -278,9 +278,7 @@ def train(
                                 "val/loss": valid_loss_head,
                                 "val/omol.val,omol_energy,mae": eval_metrics["mae_e"],
                                 "val/omol.val,forces,mae": eval_metrics["mae_f"],
-                                "val/rmse_e_per_atom": eval_metrics[
-                                    "rmse_e_per_atom"
-                                ],
+                                "val/rmse_e_per_atom": eval_metrics["rmse_e_per_atom"],
                                 "val/rmse_f": eval_metrics["rmse_f"],
                             }
                 if plotter and epoch % plotter.plot_frequency == 0:
@@ -373,14 +371,8 @@ def train_one_epoch(
             logger.log(opt_metrics)
             logging.info(opt_metrics)
             if log_wandb:
-                wandb.log(
-                    {
-                        "train/step": steps,
-                        "train/loss": opt_metrics["loss"]
-                    }
-                )
+                wandb.log({"train/step": steps, "train/loss": opt_metrics["loss"]})
             steps += 1
-
 
 
 def take_step(
