@@ -3,7 +3,7 @@
 #SBATCH --account=ocp
 #SBATCH --cpus-per-task=8
 #SBATCH --error=/fsx-checkpoints/mshuaibi/mace/%j_0_log.err
-#SBATCH --error=/fsx-checkpoints/mshuaibi/mace/%j_0_log.out
+#SBATCH --output=/fsx-checkpoints/mshuaibi/mace/%j_0_log.out
 #SBATCH --job-name=mace
 #SBATCH --mem=80GB
 #SBATCH --nodes=4
