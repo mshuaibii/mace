@@ -9,13 +9,21 @@
 #SBATCH --nodes=4
 #SBATCH --ntasks-per-node=8
 #SBATCH --gpus-per-node=8
-#SBATCH --qos=lowest
+#SBATCH --qos=ocp_high
 #SBATCH --time=10080
 
+#train_set="/fsx-ocp-med/shared/omol_sample/train"
+#val_set="/fsx-ocp-med/shared/omol_sample/val"
+#train_set="/fsx-ocp-med/shared/omol_sample/ani2x/train"
+#val_set="/fsx-ocp-med/shared/omol_sample/ani2x/val"
+train_set="/fsx-ocp-med/shared/omol_sample/geom_orca6/train"
+val_set="/fsx-ocp-med/shared/omol_sample/geom_orca6/val"
+
+job_name="MACE-omol-geom-L2-3layers-float32"
 srun /opt/hpcaas/.mounts/fs-0565f60d669b6a2d3/home/mshuaibi/.local/share/mamba/envs/mace/bin/python mace/cli/run_train.py \
-	--name="MACE-omol-L2-3layers-float32" \
-	--train_file='/fsx-ocp-med/shared/omol_sample/train' \
-	--valid_file='/fsx-ocp-med/shared/omol_sample/val' \
+	--name=$job_name \
+	--train_file=$train_set \
+	--valid_file=$val_set \
 	--statistics_file='/fsx-ocp-med/shared/omol_sample/omol_stats.json' \
 	--energy_weight=40 \
 	--forces_weight=1000 \
@@ -51,6 +59,7 @@ srun /opt/hpcaas/.mounts/fs-0565f60d669b6a2d3/home/mshuaibi/.local/share/mamba/e
 	--clip_grad=1 \
 	--keep_checkpoints \
 	--save_all_checkpoints \
+	--restart_latest \
 	--default_dtype="float32" \
 	--num_workers=4 \
 	--save_cpu \
@@ -58,4 +67,4 @@ srun /opt/hpcaas/.mounts/fs-0565f60d669b6a2d3/home/mshuaibi/.local/share/mamba/e
 	--wandb \
 	--wandb_project="omol" \
 	--wandb_entity="fairchem" \
-	--wandb_name="MACE-omol-L2-3layers-float32" \
+	--wandb_name=$job_name

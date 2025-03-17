@@ -196,7 +196,7 @@ def train(
         )
     valid_loss = valid_loss_head  # consider only the last head for the checkpoint
 
-    steps = 0
+    steps = epoch * len(train_loader)
     while epoch < max_num_epochs:
         # LR scheduler and SWA update
         if swa is None or epoch < swa.start:
