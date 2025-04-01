@@ -348,7 +348,7 @@ def train(
                 
             with param_context:
                 valid_loss = 0.0
-                wandb_log_dict = {}
+                assert len(valid_loaders.items()) == 1
                 for valid_loader_name, valid_loader in valid_loaders.items():
                     valid_loss_head, eval_metrics = evaluate(
                         model=model_to_evaluate,
@@ -367,22 +367,22 @@ def train(
                             valid_loader_name,
                         )
                         if log_wandb:
-                            wandb_log_dict[valid_loader_name] = {
-                                "epoch": epoch,
-                                "valid_loss": valid_loss_head,
-                                "valid_rmse_e_per_atom": eval_metrics["rmse_e_per_atom"],
-                                "valid_rmse_f": eval_metrics["rmse_f"],
-                            }
-                    
+                                wandb_log_dict = {
+                                    "val/epoch": epoch,
+                                    "val/loss": valid_loss_head,
+                                    "val/rmse_e_per_atom": eval_metrics["rmse_e_per_atom"],
+                                    "val/rmse_f": eval_metrics["rmse_f"],
+                                    "val/energy,mae": eval_metrics["mae_e"],
+                                    "val/forces,mae": eval_metrics["mae_f"],
+                                }
+                                logging.info(wandb_log_dict)
+                                wandb.log(wandb_log_dict)
                 if plotter and epoch % plotter.plot_frequency == 0:
                     try:
                         plotter.plot(epoch, model_to_evaluate, rank)
                     except Exception as e:  # pylint: disable=broad-except
                         logging.debug(f"Plotting failed: {e}")
                 valid_loss = valid_loss_head  # consider only the last head for the checkpoint
-                
-            if log_wandb:
-                wandb.log(wandb_log_dict)
                 
             if rank == 0:
                 if valid_loss >= lowest_loss:
