@@ -58,7 +58,11 @@ srun /opt/hpcaas/.mounts/fs-0565f60d669b6a2d3/home/mshuaibi/.local/share/mamba/e
     --keep_checkpoints \
     --save_all_checkpoints \
     --restart_latest \
-    --distributed \
     --default_dtype="float32" \
     --num_workers=4 \
-    --save_cpu
+    --save_cpu \
+    --distributed \
+    --wandb \
+    --wandb_project="omol" \
+    --wandb_entity="fairchem" \
+    --wandb_name=$job_name
