@@ -7,6 +7,7 @@
 import dataclasses
 import logging
 import time
+import wandb
 from contextlib import nullcontext
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -19,6 +20,7 @@ from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 from torch_ema import ExponentialMovingAverage
 from torchmetrics import Metric
+from tqdm import tqdm
 
 from mace.cli.visualise_train import TrainingPlotter
 
@@ -174,9 +176,6 @@ def train(
     swa_start = True
     keep_last = False
     step_count = 0  # Track total steps for step-based validation
-    
-    if log_wandb:
-        import wandb
 
     if max_grad_norm is not None:
         logging.info(f"Using gradient clipping with tolerance={max_grad_norm:.3f}")
@@ -188,19 +187,19 @@ def train(
     epoch = start_epoch
 
     # log validation loss before _any_ training
-    valid_loss = 0.0
-    for valid_loader_name, valid_loader in valid_loaders.items():
-        valid_loss_head, eval_metrics = evaluate(
-            model=model,
-            loss_fn=loss_fn,
-            data_loader=valid_loader,
-            output_args=output_args,
-            device=device,
-        )
-        valid_err_log(
-            valid_loss_head, eval_metrics, logger, log_errors, None, valid_loader_name
-        )
-    valid_loss = valid_loss_head  # consider only the last head for the checkpoint
+    # valid_loss = 0.0
+    # for valid_loader_name, valid_loader in valid_loaders.items():
+        # valid_loss_head, eval_metrics = evaluate(
+            # model=model,
+            # loss_fn=loss_fn,
+            # data_loader=valid_loader,
+            # output_args=output_args,
+            # device=device,
+        # )
+        # valid_err_log(
+            # valid_loss_head, eval_metrics, logger, log_errors, None, valid_loader_name
+        # )
+    # valid_loss = valid_loss_head  # consider only the last head for the checkpoint
 
     while epoch < max_num_epochs:
         # LR scheduler and SWA update
@@ -225,7 +224,7 @@ def train(
             train_sampler.set_epoch(epoch)
         if "ScheduleFree" in type(optimizer).__name__:
             optimizer.train()
-        
+
         # Instead of train_one_epoch, process batches directly
         model_to_train = model if distributed_model is None else distributed_model
         for batch in train_loader:
@@ -245,9 +244,10 @@ def train(
             opt_metrics["step"] = step_count
             if rank == 0:
                 logger.log(opt_metrics)
-                
+                logging.info(opt_metrics)
+                if log_wandb:
+                    wandb.log({"train/step": step_count, "train/loss": opt_metrics["loss"]})
             step_count += 1
-            
             # Step-based validation
             if eval_interval_steps is not None and step_count % eval_interval_steps == 0:
                 model_to_evaluate = model if distributed_model is None else distributed_model
@@ -257,7 +257,8 @@ def train(
                     
                 with param_context:
                     valid_loss = 0.0
-                    wandb_log_dict = {}
+                    # hacky for wandb
+                    assert len(valid_loaders.items()) == 1
                     for valid_loader_name, valid_loader in valid_loaders.items():
                         valid_loss_head, eval_metrics = evaluate(
                             model=model_to_evaluate,
@@ -276,22 +277,23 @@ def train(
                                 valid_loader_name,
                             )
                             if log_wandb:
-                                wandb_log_dict[valid_loader_name] = {
-                                    "epoch": epoch,
-                                    "step": step_count,
-                                    "valid_loss": valid_loss_head,
-                                    "valid_rmse_e_per_atom": eval_metrics["rmse_e_per_atom"],
-                                    "valid_rmse_f": eval_metrics["rmse_f"],
+                                wandb_log_dict = {
+                                    "val/epoch": epoch,
+                                    "val/step": step_count,
+                                    "val/loss": valid_loss_head,
+                                    "val/rmse_e_per_atom": eval_metrics["rmse_e_per_atom"],
+                                    "val/rmse_f": eval_metrics["rmse_f"],
+                                    "val/energy,mae": eval_metrics["mae_e"],
+                                    "val/forces,mae": eval_metrics["mae_f"],
                                 }
+                                logging.info(wandb_log_dict)
+                                wandb.log(wandb_log_dict)
                     if plotter and step_count % plotter.plot_frequency == 0:
                         try:
                             plotter.plot(epoch, model_to_evaluate, rank)
                         except Exception as e:  # pylint: disable=broad-except
                             logging.debug(f"Plotting failed: {e}")
                     valid_loss = valid_loss_head  # consider only the last head for the checkpoint
-                
-                if log_wandb:
-                    wandb.log(wandb_log_dict)
                 
                 # Update checkpoint based on validation results
                 if rank == 0:
@@ -433,6 +435,7 @@ def train_one_epoch(
     max_grad_norm: Optional[float],
     ema: Optional[ExponentialMovingAverage],
     logger: MetricsLogger,
+    log_wandb: bool,
     device: torch.device,
     distributed_model: Optional[DistributedDataParallel] = None,
     rank: Optional[int] = 0,
@@ -453,6 +456,8 @@ def train_one_epoch(
         opt_metrics["epoch"] = epoch
         if rank == 0:
             logger.log(opt_metrics)
+            logging.info(opt_metrics)
+
 
 
 def take_step(
@@ -506,7 +511,7 @@ def evaluate(
     metrics = MACELoss(loss_fn=loss_fn).to(device)
 
     start_time = time.time()
-    for batch in data_loader:
+    for batch in tqdm(data_loader, total=len(data_loader)):
         batch = batch.to(device)
         batch_dict = batch.to_dict()
         output = model(
