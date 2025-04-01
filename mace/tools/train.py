@@ -435,7 +435,6 @@ def train_one_epoch(
     max_grad_norm: Optional[float],
     ema: Optional[ExponentialMovingAverage],
     logger: MetricsLogger,
-    log_wandb: bool,
     device: torch.device,
     distributed_model: Optional[DistributedDataParallel] = None,
     rank: Optional[int] = 0,
@@ -456,8 +455,6 @@ def train_one_epoch(
         opt_metrics["epoch"] = epoch
         if rank == 0:
             logger.log(opt_metrics)
-            logging.info(opt_metrics)
-
 
 
 def take_step(
