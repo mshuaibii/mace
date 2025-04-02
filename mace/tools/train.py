@@ -175,7 +175,6 @@ def train(
     patience_counter = 0
     swa_start = True
     keep_last = False
-    step_count = 0  # Track total steps for step-based validation
 
     if max_grad_norm is not None:
         logging.info(f"Using gradient clipping with tolerance={max_grad_norm:.3f}")
@@ -185,6 +184,7 @@ def train(
     logging.info("Started training, reporting errors on validation set")
     logging.info("Loss metrics on validation set")
     epoch = start_epoch
+    step_count = epoch * len(train_loader)
 
     # log validation loss before _any_ training
     valid_loss = 0.0
