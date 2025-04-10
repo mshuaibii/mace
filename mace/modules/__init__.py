@@ -20,7 +20,8 @@ from .blocks import (
     RealAgnosticInteractionBlock,
     RealAgnosticResidualInteractionBlock,
     ResidualElementDependentInteractionBlock,
-    RealAgnosticNormalizedResidualInteractionBlock,
+    RealAgnosticAttentionResidualInteractionBlock,
+    RealAgnosticNonLinearDensityResidualInteractionBlock,
     ScaleShiftBlock,
 )
 from .loss import (
@@ -32,6 +33,7 @@ from .loss import (
     WeightedEnergyForcesVirialsLoss,
     WeightedForcesLoss,
     WeightedHuberEnergyForcesStressLoss,
+    WeightedEnergyForcesL1L2Loss,
 )
 from .models import (
     MACE,
@@ -61,7 +63,8 @@ interaction_classes: Dict[str, Type[InteractionBlock]] = {
     "RealAgnosticInteractionBlock": RealAgnosticInteractionBlock,
     "RealAgnosticDensityInteractionBlock": RealAgnosticDensityInteractionBlock,
     "RealAgnosticDensityResidualInteractionBlock": RealAgnosticDensityResidualInteractionBlock,
-    "RealAgnosticNormalizedResidualInteractionBlock": RealAgnosticNormalizedResidualInteractionBlock,
+    "RealAgnosticAttentionResidualInteractionBlock": RealAgnosticAttentionResidualInteractionBlock,
+    "RealAgnosticNonLinearDensityResidualInteractionBlock": RealAgnosticNonLinearDensityResidualInteractionBlock,
 }
 
 scaling_classes: Dict[str, Callable] = {
@@ -102,6 +105,7 @@ __all__ = [
     "WeightedForcesLoss",
     "WeightedEnergyForcesVirialsLoss",
     "WeightedEnergyForcesStressLoss",
+    "WeightedEnergyForcesL1L2Loss",
     "DipoleSingleLoss",
     "WeightedEnergyForcesDipoleLoss",
     "WeightedHuberEnergyForcesStressLoss",

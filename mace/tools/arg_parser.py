@@ -172,7 +172,8 @@ def build_default_arg_parser() -> argparse.ArgumentParser:
             "RealAgnosticInteractionBlock",
             "RealAgnosticDensityInteractionBlock",
             "RealAgnosticDensityResidualInteractionBlock",
-            "RealAgnosticNormalizedResidualInteractionBlock",
+            "RealAgnosticAttentionResidualInteractionBlock",
+            "RealAgnosticNonLinearDensityResidualInteractionBlock",
         ],
     )
     parser.add_argument(
@@ -185,8 +186,15 @@ def build_default_arg_parser() -> argparse.ArgumentParser:
             "RealAgnosticInteractionBlock",
             "RealAgnosticDensityInteractionBlock",
             "RealAgnosticDensityResidualInteractionBlock",
-            "RealAgnosticNormalizedResidualInteractionBlock",
+            "RealAgnosticAttentionResidualInteractionBlock",
+            "RealAgnosticNonLinearDensityResidualInteractionBlock",
         ],
+    )
+    parser.add_argument(
+        "--embedding_type",
+        help="type of embedding",
+        type=str,
+        default=None,
     )
     parser.add_argument(
         "--max_ell", help=r"highest \ell of spherical harmonics", type=int, default=3
@@ -212,6 +220,12 @@ def build_default_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--hidden_irreps",
         help="irreps for hidden node states",
+        type=str,
+        default=None,
+    )
+    parser.add_argument(
+        "--attention_irreps",
+        help="irreps for attention layer",
         type=str,
         default=None,
     )

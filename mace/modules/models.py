@@ -27,6 +27,7 @@ from .blocks import (
     RadialEmbeddingBlock,
     ScaleShiftBlock,
 )
+from .embeddings import FiLMEmbedding, AttentionEmbedding, ConditionalNormEmbedding
 from .utils import (
     compute_fixed_charge_dipole,
     compute_forces,
@@ -61,8 +62,10 @@ class MACE(torch.nn.Module):
         distance_transform: str = "None",
         radial_MLP: Optional[List[int]] = None,
         radial_type: Optional[str] = "bessel",
+        embedding_type: Optional[str] = None,
         heads: Optional[List[str]] = None,
         cueq_config: Optional[Dict[str, Any]] = None,
+        attention_irreps: Optional[o3.Irreps] = None,
     ):
         super().__init__()
         self.register_buffer(
@@ -79,6 +82,7 @@ class MACE(torch.nn.Module):
         self.heads = heads
         if isinstance(correlation, int):
             correlation = [correlation] * num_interactions
+        self.attention_irreps = attention_irreps
         # Embedding
         node_attr_irreps = o3.Irreps([(num_elements, (0, 1))])
         node_feats_irreps = o3.Irreps([(hidden_irreps.count(o3.Irrep(0, 1)), (0, 1))])
@@ -87,21 +91,31 @@ class MACE(torch.nn.Module):
             irreps_out=node_feats_irreps,
             cueq_config=cueq_config,
         )
-        self.spin_embedding = LinearNodeEmbeddingBlock(
-            irreps_in=o3.Irreps("1x0e"),
-            irreps_out=node_feats_irreps,
-            cueq_config=cueq_config,
-        )
-        self.charges_embedding = LinearNodeEmbeddingBlock(
-            irreps_in=o3.Irreps("1x0e"),
-            irreps_out=node_feats_irreps,
-            cueq_config=cueq_config,
-        )
-        self.spin_charge_mixing = LinearNodeEmbeddingBlock(
-            irreps_in=(2*node_feats_irreps).sort()[0].simplify(),
-            irreps_out=node_feats_irreps,
-            cueq_config=cueq_config,
-        )
+        self.embedding_type = embedding_type
+        embedding_size = node_feats_irreps.count(o3.Irrep(0, 1))
+        if embedding_type.lower() == "film":
+            self.joint_embedding = FiLMEmbedding(
+                num_elements=num_elements,
+                embedding_size=embedding_size,
+                cueq_config=cueq_config
+            )
+        elif embedding_type.lower() == "attention":
+            self.joint_embedding = AttentionEmbedding(
+                num_elements=num_elements,
+                embedding_size=embedding_size,
+                cueq_config=cueq_config,
+                num_heads=16,
+            )
+        elif embedding_type.lower() == "condnorm":
+            self.joint_embedding = ConditionalNormEmbedding(
+                num_elements=num_elements,
+                embedding_size=embedding_size,
+                cueq_config=cueq_config
+            )
+        if embedding_type is not None:
+            self.spin_charge_readout = LinearReadoutBlock(
+                node_feats_irreps, o3.Irreps(f"{len(heads)}x0e"), cueq_config
+            )
         self.radial_embedding = RadialEmbeddingBlock(
             r_max=r_max,
             num_bessel=num_bessel,
@@ -134,6 +148,7 @@ class MACE(torch.nn.Module):
             hidden_irreps=hidden_irreps,
             avg_num_neighbors=avg_num_neighbors,
             radial_MLP=radial_MLP,
+            attention_irreps=attention_irreps,
             cueq_config=cueq_config,
         )
         self.interactions = torch.nn.ModuleList([inter])
@@ -177,6 +192,7 @@ class MACE(torch.nn.Module):
                 hidden_irreps=hidden_irreps_out,
                 avg_num_neighbors=avg_num_neighbors,
                 radial_MLP=radial_MLP,
+                attention_irreps=attention_irreps,
                 cueq_config=cueq_config,
             )
             self.interactions.append(inter)
@@ -275,11 +291,20 @@ class MACE(torch.nn.Module):
             pair_node_energy = torch.zeros_like(node_e0)
             pair_energy = torch.zeros_like(e0)
 
-        if hasattr(self, "spin_embedding") and hasattr(self, "charges_embedding"):
-            spin_feats = self.spin_embedding(data["total_spin"])
-            charge_feats = self.charges_embedding(data["total_charge"])
-            spin_charge_feats = torch.cat([spin_feats, charge_feats], dim=-1)
-            node_feats += self.spin_charge_mixing(torch.nn.functional.silu(spin_charge_feats))[data["batch"], :]
+        if hasattr(self, "embedding_type"):
+            spin_indices = data["total_spin"].to(torch.long)
+            charge_indices = (data["total_charge"] + 100).to(torch.long)
+            node_feats = self.joint_embedding(
+                node_feats,
+                data["batch"],
+                spin_indices,
+                charge_indices,
+            )
+            csp_energy_atom = self.spin_charge_readout(node_feats).squeeze(-1)
+            csp_energy = scatter_sum(
+                src=csp_energy_atom, index=data["batch"], dim=0, dim_size=num_graphs
+            )
+            e0 += csp_energy
             
         # Interactions
         energies = [e0, pair_energy]
@@ -428,11 +453,20 @@ class ScaleShiftMACE(MACE):
         node_es_list = [pair_node_energy]
         node_feats_list = []
 
-        if hasattr(self, "spin_embedding") and hasattr(self, "charges_embedding"):
-            spin_feats = self.spin_embedding(data["total_spin"].unsqueeze(-1))
-            charge_feats = self.charges_embedding(data["total_charge"].unsqueeze(-1))
-            spin_charge_feats = torch.cat([spin_feats, charge_feats], dim=-1)
-            node_feats += torch.nn.functional.silu(self.spin_charge_mixing(spin_charge_feats))[data["batch"], :]
+        if hasattr(self, "embedding_type"):
+            spin_indices = data["total_spin"].to(torch.long)
+            charge_indices = (data["total_charge"] + 100).to(torch.long)
+            node_feats = self.joint_embedding(
+                node_feats,
+                data["batch"],
+                spin_indices,
+                charge_indices,
+            )
+            csp_energy_atom = self.spin_charge_readout(node_feats).squeeze(-1)
+            csp_energy = scatter_sum(
+                src=csp_energy_atom, index=data["batch"], dim=0, dim_size=num_graphs
+            )
+            e0 += csp_energy
 
         for interaction, product, readout in zip(
             self.interactions, self.products, self.readouts
