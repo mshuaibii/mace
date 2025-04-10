@@ -187,9 +187,6 @@ class CheckpointIO:
         self, swa: Optional[bool] = False, device: Optional[torch.device] = None
     ) -> Optional[Tuple[Checkpoint, int]]:
         path = self._get_latest_checkpoint_path(swa=swa)
-        if path is None:
-            return None
-
         return self.load(path, device=device)
 
     def load(
@@ -204,6 +201,7 @@ class CheckpointIO:
         return (
             torch.load(f=checkpoint_info.path, map_location=device),
             checkpoint_info.epochs,
+            checkpoint_info.step
         )
 
 
@@ -229,9 +227,9 @@ class CheckpointHandler:
         if result is None:
             return None
 
-        checkpoint, epochs = result
+        checkpoint, epochs, steps = result
         self.builder.load_checkpoint(state=state, checkpoint=checkpoint, strict=strict)
-        return epochs
+        return epochs, steps
 
     def load(
         self,

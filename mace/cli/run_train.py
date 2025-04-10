@@ -742,21 +742,23 @@ def run(args) -> None:
     )
 
     start_epoch = 0
+    start_step = 0
     if args.restart_latest:
         try:
-            opt_start_epoch = checkpoint_handler.load_latest(
+            opt_start_epoch, opt_start_step = checkpoint_handler.load_latest(
                 state=tools.CheckpointState(model, optimizer, lr_scheduler),
                 swa=True,
                 device=device,
             )
         except Exception:  # pylint: disable=W0703
-            opt_start_epoch = checkpoint_handler.load_latest(
+            opt_start_epoch, opt_start_step = checkpoint_handler.load_latest(
                 state=tools.CheckpointState(model, optimizer, lr_scheduler),
                 swa=False,
                 device=device,
             )
         if opt_start_epoch is not None:
             start_epoch = opt_start_epoch
+            start_step = opt_start_step
 
     ema: Optional[ExponentialMovingAverage] = None
     if args.ema:
@@ -810,6 +812,7 @@ def run(args) -> None:
         checkpoint_handler=checkpoint_handler,
         eval_interval=args.eval_interval,
         start_epoch=start_epoch,
+        start_step=start_step,
         max_num_epochs=args.max_num_epochs,
         logger=logger,
         patience=args.patience,

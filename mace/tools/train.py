@@ -150,6 +150,7 @@ def train(
     optimizer: torch.optim.Optimizer,
     lr_scheduler: torch.optim.lr_scheduler.ExponentialLR,
     start_epoch: int,
+    start_step: int,
     max_num_epochs: int,
     patience: int,
     checkpoint_handler: CheckpointHandler,
@@ -184,7 +185,7 @@ def train(
     logging.info("Started training, reporting errors on validation set")
     logging.info("Loss metrics on validation set")
     epoch = start_epoch
-    step_count = epoch * len(train_loader)
+    step_count = start_step
 
     # log validation loss before _any_ training
     valid_loss = 0.0
@@ -246,7 +247,10 @@ def train(
                 logger.log(opt_metrics)
                 logging.info(opt_metrics)
                 if log_wandb:
-                    wandb.log({"train/step": step_count, "train/loss": opt_metrics["loss"]})
+                    wandb.log(
+                        {"train/step": step_count, "train/loss": opt_metrics["loss"]},
+                        step=step_count
+                    )
             step_count += 1
             # Step-based validation
             if eval_interval_steps is not None and step_count % eval_interval_steps == 0:
@@ -287,7 +291,7 @@ def train(
                                     "val/forces,mae": eval_metrics["mae_f"],
                                 }
                                 logging.info(wandb_log_dict)
-                                wandb.log(wandb_log_dict)
+                                wandb.log(wandb_log_dict, step=step_count)
                     if plotter and step_count % plotter.plot_frequency == 0:
                         try:
                             plotter.plot(epoch, model_to_evaluate, rank)
