@@ -922,12 +922,11 @@ class AseDBDataset(AseAtomsDataset):
     ) -> ase.db.core.Database:
         if connect_args is None:
             connect_args = {}
-        db_type = connect_args.get("type", "extract_from_name")
-        if db_type in ("lmdb", "aselmdb") or (
-            db_type == "extract_from_name"
-            and str(address).rsplit(".", maxsplit=1)[-1] in ("lmdb", "aselmdb")
-        ):
-            return LMDBDatabase(address, readonly=True, **connect_args)
+
+        # If we're using an aselmdb, let's set readonly=True to be safe!
+        if "aselmdb" in address:
+            connect_args["readonly"] = True
+            connect_args["use_lock_file"] = False
 
         return ase.db.connect(address, **connect_args)
 
