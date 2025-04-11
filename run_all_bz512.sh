@@ -1,10 +1,21 @@
 #!/bin/bash
-train_set="/opt/hpcaas/.mounts/fs-0a14d5cae11d2d8c0/shared/omol/250409-final/train"
-#train_set="/opt/hpcaas/.mounts/fs-0a14d5cae11d2d8c0/shared/fm_training/dataset_sync_250225/omol/250303/train"
-val_set="/checkpoint/ocp/mshuaibi/omol/val"
-scale_file="/opt/hpcaas/.mounts/fs-0a14d5cae11d2d8c0/mshuaibi/omol/mace/omol_stats.json"
+#SBATCH --account=ocp
+#SBATCH --cpus-per-task=8
+#SBATCH --error=/checkpoint/ocp/mshuaibi/omol/mace/%j_0_log.err
+#SBATCH --output=/checkpoint/ocp/mshuaibi/omol/mace/%j_0_log.out
+#SBATCH --job-name=mace
+#SBATCH --mem=80GB
+#SBATCH --nodes=4
+#SBATCH --ntasks-per-node=8
+#SBATCH --gpus-per-node=8
+#SBATCH --qos=ocp
+#SBATCH --time=10080
 
-job_name="MACE-omol-L1-3layers-linear-l1l2-big-512-ok-all-bz128"
+train_set="/opt/hpcaas/.mounts/fs-0a14d5cae11d2d8c0/shared/omol/250409-final/train"
+val_set="/opt/hpcaas/.mounts/fs-0a14d5cae11d2d8c0/shared/omol/250409-final/val_30k"
+scale_file="/opt/hpcaas/.mounts/fs-0a14d5cae11d2d8c0/mshuaibi/omol/mace/omol_stats_041025.json"
+
+job_name=""
 /opt/hpcaas/.mounts/fs-0df31b178aa4037ac/home/mshuaibi/micromamba/envs/mace/bin/python mace/cli/run_train.py \
     --name=$job_name \
     --train_file=$train_set \
@@ -15,7 +26,7 @@ job_name="MACE-omol-L1-3layers-linear-l1l2-big-512-ok-all-bz128"
     --energy_key='energy' \
     --forces_key='forces' \
     --eval_interval=1 \
-    --eval_interval_steps=5 \
+    --eval_interval_steps=10000 \
     --error_table='PerAtomMAE' \
     --model="ScaleShiftMACE" \
     --loss='l1l2_forces' \
@@ -36,7 +47,7 @@ job_name="MACE-omol-L1-3layers-linear-l1l2-big-512-ok-all-bz128"
     --weight_decay=0.0 \
     --ema \
     --ema_decay=0.999 \
-    --batch_size=8 \
+    --batch_size=16 \
     --valid_batch_size=16 \
     --max_num_epochs=200 \
     --optimizer="schedulefree" \
@@ -51,9 +62,9 @@ job_name="MACE-omol-L1-3layers-linear-l1l2-big-512-ok-all-bz128"
     --default_dtype="float32" \
     --num_workers=4 \
     --save_cpu \
-    --work_dir "/opt/hpcaas/.mounts/fs-0a14d5cae11d2d8c0/shared/omol/run_dir/mace"
-    #--wandb \
-    #--wandb_project="omol" \
-    #--wandb_entity="fairchem" \
-    #--wandb_name=$job_name \
-    #--enable_cueq=True
+    --work_dir "/opt/hpcaas/.mounts/fs-0a14d5cae11d2d8c0/shared/omol/run_dir/mace" \
+    --wandb \
+    --wandb_project="omol" \
+    --wandb_entity="fairchem" \
+    --wandb_name=$job_name \
+    --enable_cueq=True

@@ -1,22 +1,22 @@
 #!/bin/bash
 #SBATCH --account=ocp
 #SBATCH --cpus-per-task=8
-#SBATCH --error=/fsx-checkpoints/mshuaibi/mace/%j_0_log.err
-#SBATCH --output=/fsx-checkpoints/mshuaibi/mace/%j_0_log.out
+#SBATCH --error=/checkpoint/ocp/mshuaibi/omol/mace/%j_0_log.err
+#SBATCH --output=/checkpoint/ocp/mshuaibi/omol/mace/%j_0_log.out
 #SBATCH --job-name=mace
 #SBATCH --mem=80GB
-#SBATCH --nodes=4
+#SBATCH --nodes=2
 #SBATCH --ntasks-per-node=8
 #SBATCH --gpus-per-node=8
-#SBATCH --qos=ocp_high
+#SBATCH --qos=ocp
 #SBATCH --time=10080
 
-train_set="/fsx-ocp-med/shared/omol_sample/train"
-val_set="/fsx-ocp-med/shared/omol_sample/val"
-scale_file="/fsx-ocp-med/shared/omol_sample/omol_stats.json"
+train_set="/opt/hpcaas/.mounts/fs-0a14d5cae11d2d8c0/shared/omol/250409-final/train"
+val_set="/opt/hpcaas/.mounts/fs-0a14d5cae11d2d8c0/shared/omol/250409-final/val_30k"
+scale_file="/opt/hpcaas/.mounts/fs-0a14d5cae11d2d8c0/mshuaibi/omol/mace/omol_stats_041025.json"
 
-job_name="MACE-omol-L1-3layers-linear-l1l2-big-512-ok"
-srun /opt/hpcaas/.mounts/fs-0565f60d669b6a2d3/home/mshuaibi/.local/share/mamba/envs/mace/bin/python mace/cli/run_train.py \
+job_name=""
+/opt/hpcaas/.mounts/fs-0df31b178aa4037ac/home/mshuaibi/micromamba/envs/mace/bin/python mace/cli/run_train.py \
     --name=$job_name \
     --train_file=$train_set \
     --valid_file=$val_set \
@@ -26,6 +26,7 @@ srun /opt/hpcaas/.mounts/fs-0565f60d669b6a2d3/home/mshuaibi/.local/share/mamba/e
     --energy_key='energy' \
     --forces_key='forces' \
     --eval_interval=1 \
+    --eval_interval_steps=10000 \
     --error_table='PerAtomMAE' \
     --model="ScaleShiftMACE" \
     --loss='l1l2_forces' \
@@ -34,19 +35,19 @@ srun /opt/hpcaas/.mounts/fs-0565f60d669b6a2d3/home/mshuaibi/.local/share/mamba/e
     --num_interactions=3 \
     --correlation=3 \
     --max_ell=3 \
-    --r_max=6.0 \
+    --r_max=7.0 \
     --max_L=1 \
     --num_channels=512 \
     --num_radial_basis=8 \
     --MLP_irreps="16x0e" \
     --scaling='rms_forces_scaling' \
     --mean=0 \
-    --std=0.98 \
+    --std=1.429279 \
     --lr=0.01 \
     --weight_decay=0.0 \
     --ema \
     --ema_decay=0.999 \
-    --batch_size=4 \
+    --batch_size=8 \
     --valid_batch_size=16 \
     --max_num_epochs=200 \
     --optimizer="schedulefree" \
@@ -61,8 +62,9 @@ srun /opt/hpcaas/.mounts/fs-0565f60d669b6a2d3/home/mshuaibi/.local/share/mamba/e
     --default_dtype="float32" \
     --num_workers=4 \
     --save_cpu \
-    --distributed \
+    --work_dir "/opt/hpcaas/.mounts/fs-0a14d5cae11d2d8c0/shared/omol/run_dir/mace" \
     --wandb \
     --wandb_project="omol" \
     --wandb_entity="fairchem" \
-    --wandb_name=$job_name
+    --wandb_name=$job_name \
+    --enable_cueq=True
