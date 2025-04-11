@@ -63,6 +63,7 @@ job_name="041025_mace_bz128_all"
     --num_workers=4 \
     --save_cpu \
     --work_dir "/opt/hpcaas/.mounts/fs-0a14d5cae11d2d8c0/shared/omol/run_dir/mace" \
+    --distributed \
     --wandb \
     --wandb_project="omol" \
     --wandb_entity="fairchem" \
