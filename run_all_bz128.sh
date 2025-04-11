@@ -16,7 +16,7 @@ val_set="/opt/hpcaas/.mounts/fs-0a14d5cae11d2d8c0/shared/omol/250409-final/val_3
 scale_file="/opt/hpcaas/.mounts/fs-0a14d5cae11d2d8c0/mshuaibi/omol/mace/omol_stats_041025.json"
 
 job_name="041025_mace_bz128_all"
-/opt/hpcaas/.mounts/fs-0df31b178aa4037ac/home/mshuaibi/micromamba/envs/mace/bin/python mace/cli/run_train.py \
+srun /opt/hpcaas/.mounts/fs-0df31b178aa4037ac/home/mshuaibi/micromamba/envs/mace/bin/python mace/cli/run_train.py \
     --name=$job_name \
     --train_file=$train_set \
     --valid_file=$val_set \
