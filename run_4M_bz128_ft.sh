@@ -5,31 +5,31 @@
 #SBATCH --output=/checkpoint/ocp/mshuaibi/omol/mace/%j_0_log.out
 #SBATCH --job-name=mace
 #SBATCH --mem=1500GB
-#SBATCH --nodes=4
+#SBATCH --nodes=1
 #SBATCH --ntasks-per-node=8
 #SBATCH --gpus-per-node=8
-#SBATCH --qos=ocp
+#SBATCH --qos=ocp_high
 #SBATCH --exclusive
 #SBATCH --time=10080
 
 #h100-2
-#train_set="/opt/hpcaas/.mounts/fs-0a14d5cae11d2d8c0/shared/omol/250409-final/train"
+#train_set="/opt/hpcaas/.mounts/fs-0a14d5cae11d2d8c0/shared/omol/250409-final/train_4M"
 #val_set="/opt/hpcaas/.mounts/fs-0a14d5cae11d2d8c0/shared/omol/250409-final/val_30k"
 #scale_file="/opt/hpcaas/.mounts/fs-0a14d5cae11d2d8c0/mshuaibi/omol/mace/omol_stats_041025.json"
 #h100-1
-train_set="/opt/hpcaas/.mounts/fs-0c40489436c32db98/shared/omol/250409-final/train"
+train_set="/opt/hpcaas/.mounts/fs-0c40489436c32db98/shared/omol/250409-final/train_4M"
 val_set="/opt/hpcaas/.mounts/fs-0c40489436c32db98/shared/omol/250409-final/val_30k"
 scale_file="/opt/hpcaas/.mounts/fs-0c40489436c32db98/shared/omol/250409-final/mace/omol_stats_041025.json"
 work_dir="/opt/hpcaas/.mounts/fs-0c40489436c32db98/shared/omol/run_dir/mace"
 PYTHON="/opt/hpcaas/.mounts/fs-072917c00f01ae1ba/home/mshuaibi/.local/share/mamba/envs/mace/bin/python"
 
-job_name="041025_mace_bz512_all"
+job_name="041025_mace_bz128_4M_ft_e100f10"
 srun $PYTHON mace/cli/run_train.py \
     --name=$job_name \
     --train_file=$train_set \
     --valid_file=$val_set \
     --statistics_file=$scale_file \
-    --energy_weight=10 \
+    --energy_weight=100 \
     --forces_weight=10 \
     --energy_key='energy' \
     --forces_key='forces' \
