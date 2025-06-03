@@ -4,12 +4,13 @@
 #SBATCH --error=/checkpoint/ocp/mshuaibi/omol/mace/%j_0_log.err
 #SBATCH --output=/checkpoint/ocp/mshuaibi/omol/mace/%j_0_log.out
 #SBATCH --job-name=mace
-#SBATCH --mem=80GB
+#SBATCH --mem=1500GB
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=8
 #SBATCH --gpus-per-node=8
 #SBATCH --qos=ocp_high
 #SBATCH --time=10080
+#SBATCH --exclusive
 
 #h100-2
 #train_set="/opt/hpcaas/.mounts/fs-0a14d5cae11d2d8c0/shared/omol/250409-final/train_4M"

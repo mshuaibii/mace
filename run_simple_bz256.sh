@@ -23,7 +23,7 @@ scale_file="/opt/hpcaas/.mounts/fs-0c40489436c32db98/shared/omol/250409-final/ma
 work_dir="/opt/hpcaas/.mounts/fs-0c40489436c32db98/shared/omol/run_dir/mace"
 PYTHON="/opt/hpcaas/.mounts/fs-072917c00f01ae1ba/home/mshuaibi/.local/share/mamba/envs/mace/bin/python"
 
-job_name="041725_mace_bz256_simple"
+job_name="041825_mace_bz256_simple"
 srun $PYTHON mace/cli/run_train.py \
     --name=$job_name \
     --train_file=$train_set \
